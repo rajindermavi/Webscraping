@@ -9,13 +9,44 @@ import pandas as pd
 import numpy as np
 from usp.tree import sitemap_tree_for_homepage as sth
 
+def get_pagelist_sth(url):
+    tree = sth(url)
+    page_list = list(set(page.url for page in tree.all_pages()))
+    return page_list
+
+def get_pagelist_bs(url):
+    page_list = []
+    try: 
+        r = requests.get(url)
+    except:
+        print('Fail at', url)
+        return page_list
+    soup = BeautifulSoup(r.text,'html.parser')
+    for link in soup.find_all('a'):
+        href = link.get('href')
+        if href and href[:4] != 'http':
+            if href[0] == '/':
+                page_list.append(url+href)
+            else:
+                page_list.append(url+'/'+href)
+    
+    return page_list
+
+
 def get_pagelist(url):
 
     if url[:4] != 'http':
         url = 'https://' + url
 
-    tree = sth(url)
-    page_list = list(set(page.url for page in tree.all_pages()))
+    # First Attempt
+    page_list = get_pagelist_sth(url)
+    # Second Attempt
+    if len(page_list) == 0:
+        page_list = get_pagelist_bs(url)
+    # Final
+    if len(page_list) == 0:
+        page_list = [url]
+
     page_list.sort(key = len)
         
     return page_list
@@ -74,7 +105,7 @@ def json_list_to_table(json_list):
 if __name__ == "__main__":
 
     NCsurvey_df = pd.read_csv('NCsurvey.csv')
-    url_list = list(filter(lambda x: x==x, NCsurvey_df.iloc[2,2:].values))  
+    url_list = list(filter(lambda x: x==x, NCsurvey_df.iloc[2,2:].values))[:3]  
 
     sitemaps = {}
     for url in url_list:
